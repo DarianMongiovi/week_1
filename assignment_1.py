@@ -11,3 +11,5 @@ Please run this script and make sure it prints "Hello World" to the console!
 
 
 print('Hello World')
+
+print('Python is installed and running.')
