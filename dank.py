@@ -1,32 +1,66 @@
-def pro_syllable_counter(word):
-    word = word.lower().strip(".:,;!?")
-    if len(word) <= 3: return 1
+import requests
+import random
+import re
 
-    # 1. Handle starting 'y' (make it a consonant for the regex)
-    processing_word = word
-    if word.startswith('y'):
-        processing_word = word[1:]
+def get_api_key():
+    try:
+        with open('api_key.txt', 'r') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        print("Error: api_key.txt not found!")
+        return None
 
-    # 2. Base count
-    syllables = len(re.findall(r'[aeiouy]+', processing_word))
+def get_random_headline_words():
+    api_key = get_api_key()
+    if not api_key: return []
 
-    # 3. Suffix Exceptions
-    if word.endswith("e") and not word.endswith(("le", "ee")):
-        syllables -= 1
-    if word.endswith(("ed", "es")):
-        # Only subtract if it's not a 'heavy' ending like -ted or -shes
-        if not word.endswith(("ted", "ded", "ces", "ses", "xes", "zes", "ches", "shes")):
-            syllables -= 1
-    if word.endswith(("que", "gue")):
-        syllables -= 1
-    if word.endswith("ism"): # prism, schism
-        syllables += 1
+    categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
+    chosen_category = random.choice(categories)
+    
+    url = 'https://newsapi.org/v2/top-headlines'
+    params = {
+        'language': 'en',
+        'apiKey': api_key,
+        'category': chosen_category,
+        'pageSize': 20
+    }
 
-    # 4. Prefix/Hiatus Exceptions (The 'Adders')
-    # These pairs almost always split into two syllables
-    add_one = ["ia", "io", "iu", "uo", "oa", "eo", "ao", "ua"]
-    for pair in add_one:
-        if pair in word:
-            syllables += 1
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
 
-    return max(syllables, 1)
+        if data.get('status') == 'ok' and data.get('articles'):
+            # Sample more articles to ensure we get a good word pool after filtering
+            sample_articles = random.sample(data['articles'], k=min(5, len(data['articles'])))
+            
+            all_words = []
+            for article in sample_articles:
+                title = article.get('title', '')
+                
+                # 1. Replace hyphens and em-dashes with spaces to separate words
+                title = title.replace('-', ' ').replace('—', ' ')
+                
+                words = title.split()
+                for w in words:
+                    # 2. Clean punctuation
+                    clean = w.strip(".,!?:;\"()[]{}*|#/@").lower()
+                    
+                    # 3. Filter: Must be alphabetical, longer than 1 char (or 'a'/'i'), 
+                    # and not purely a number.
+                    if clean.isalpha() and (len(clean) > 1 or clean in ['a', 'i']):
+                        # 4. Optional: Skip known abbreviations/acronyms (all caps in original)
+                        if w.isupper() and len(w) > 1:
+                            continue
+                            
+                        all_words.append(clean)
+            
+            print(f"--- Topic: {chosen_category} | Words collected: {len(all_words)} ---")
+            return all_words
+        return []
+    except Exception as e:
+        print("Error:", e)
+        return []
+
+# Usage
+def word_list():
+    return get_random_headline_words()
