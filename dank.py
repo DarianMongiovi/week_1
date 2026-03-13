@@ -1,66 +1,15 @@
-import requests
-import random
-import re
+#!/bin/bash
 
-def get_api_key():
-    try:
-        with open('api_key.txt', 'r') as file:
-            return file.read().strip()
-    except FileNotFoundError:
-        print("Error: api_key.txt not found!")
-        return None
+# Navigate to the project folder
+cd /home/darmongiovi/Desktop/cmcc_calendar_fetcher
 
-def get_random_headline_words():
-    api_key = get_api_key()
-    if not api_key: return []
+# Activate the virtual environment
+source venv/bin/activate
 
-    categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
-    chosen_category = random.choice(categories)
-    
-    url = 'https://newsapi.org/v2/top-headlines'
-    params = {
-        'language': 'en',
-        'apiKey': api_key,
-        'category': chosen_category,
-        'pageSize': 20
-    }
+# Execute the Python script and log the output
+echo "--- Run Started: $(date) ---" >> cron_log.txt
+python3 postgre_populate.py >> cron_log.txt 2>&1
+echo "--- Run Finished: $(date) ---" >> cron_log.txt
 
-    try:
-        response = requests.get(url, params=params)
-        data = response.json()
-
-        if data.get('status') == 'ok' and data.get('articles'):
-            # Sample more articles to ensure we get a good word pool after filtering
-            sample_articles = random.sample(data['articles'], k=min(5, len(data['articles'])))
-            
-            all_words = []
-            for article in sample_articles:
-                title = article.get('title', '')
-                
-                # 1. Replace hyphens and em-dashes with spaces to separate words
-                title = title.replace('-', ' ').replace('—', ' ')
-                
-                words = title.split()
-                for w in words:
-                    # 2. Clean punctuation
-                    clean = w.strip(".,!?:;\"()[]{}*|#/@").lower()
-                    
-                    # 3. Filter: Must be alphabetical, longer than 1 char (or 'a'/'i'), 
-                    # and not purely a number.
-                    if clean.isalpha() and (len(clean) > 1 or clean in ['a', 'i']):
-                        # 4. Optional: Skip known abbreviations/acronyms (all caps in original)
-                        if w.isupper() and len(w) > 1:
-                            continue
-                            
-                        all_words.append(clean)
-            
-            print(f"--- Topic: {chosen_category} | Words collected: {len(all_words)} ---")
-            return all_words
-        return []
-    except Exception as e:
-        print("Error:", e)
-        return []
-
-# Usage
-def word_list():
-    return get_random_headline_words()
+# Exit the virtual environment
+deactivate
